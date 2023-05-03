@@ -1,15 +1,18 @@
-import { useEffect, useState, useRef, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import './App.css'
 import { SortBy, type User } from './types.d'
 import { UserList } from './components/UsersList'
+import { useUser } from './hooks/useUsers'
+import { Result } from './components/Results'
 
 function App () {
-  const [users, setUsers] = useState<User[]>([])
+  const { isError, isLoading, refetch, fetchNextPage, users, hasNextPage } = useUser()
+
   const [showColors, setShowColors] = useState(false)
   const [sorting, setSorting] = useState<SortBy>(SortBy.NONE)
   const [filterCountry, setFilterCountry] = useState<string | null>(null)
 
-  const origianlUsers = useRef<User[]>([])
+  // const origianlUsers = useRef<User[]>([])
 
   const toggleColors = () => {
     setShowColors(!showColors)
@@ -21,29 +24,17 @@ function App () {
   }
 
   const handleDelete = (email: string) => {
-    const filteredUsers = users.filter(user => user.email !== email)
-    setUsers(filteredUsers)
+    // const filteredUsers = users.filter(user => user.email !== email)
+    // setUsers(filteredUsers)
   }
 
-  const handleReset = () => {
-    setUsers(origianlUsers.current)
+  const handleReset = async () => {
+    await refetch()
   }
 
   const handleChangeSort = (sort: SortBy) => {
     setSorting(sort)
   }
-
-  useEffect(() => {
-    fetch('https://randomuser.me/api?results=100')
-      .then(async res => await res.json())
-      .then(res => {
-        setUsers(res.results)
-        origianlUsers.current = res.results
-      })
-      .catch(err => {
-        console.log(err)
-      })
-  }, [])
 
   const filterUser = useMemo(() => {
     return (
@@ -71,18 +62,25 @@ function App () {
   }, [filterUser, sorting])
 
   return <>
+  <div className='App'>
   <h1>Prueba tecnica</h1>
+    <Result />
   <header>
     <button onClick={toggleColors}>Colorear filas</button>
     <button onClick={toggleSortByCountry}>{sorting === SortBy.COUNTRY ? 'Ordenar por pais' : 'No ordenar por pais'}</button>
-    <button onClick={handleReset}>Restablecer usuarios</button>
+    <button onClick={() => { void handleReset }}>Restablecer usuarios</button>
     <input placeholder='filtrar por pais' onChange={(e) => { setFilterCountry(e.target.value) }}/>
   </header>
   <main>
-    <UserList showColors={showColors} users={sortedUsers} deleteUser={handleDelete}
+    {users.length > 0 && <UserList showColors={showColors} users={sortedUsers} deleteUser={handleDelete}
      changeSorting={handleChangeSort}
-     />
+     />}
+    {isLoading && <p>Cargando</p>}
+    {!isLoading && isError && <p>Ha ocurrido un error</p>}
+    {!isLoading && !isError && hasNextPage === true && <button onClick={() => { void fetchNextPage() }}>Cargar mas</button>}
+    {hasNextPage === false && <p>No hay mas resultados</p>}
   </main>
+  </div>
 
   </>
 }
